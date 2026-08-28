@@ -5403,6 +5403,58 @@ ad
   </style>
 </head>
 
+<!-- INICIO DE CONEXIÓN CON SUPABASE -->
+<!-- 1. Importamos la librería de Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<!-- 2. Agregamos un botón temporal para probar la subida -->
+<div style="position: fixed; bottom: 20px; right: 20px; background: white; padding: 15px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 9999;">
+  <p style="margin: 0 0 10px; font-weight: bold; color: #343995; font-size: 14px;">☁️ Prueba de Nube</p>
+  <input type="file" id="archivoPrueba" style="font-size: 12px; margin-bottom: 10px;" />
+</div>
+
+<!-- 3. Lógica de conexión y subida -->
+<script>
+  // Inicializamos Supabase con tus llaves
+  const supabaseUrl = 'TU_URL_AQUI'; 
+  const supabaseKey = 'TU_KEY_AQUI'; 
+  const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+  // Detectamos cuando seleccionas un archivo en el botón de prueba
+  document.getElementById('archivoPrueba').addEventListener('change', async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Le agregamos la fecha al nombre para que no se sobreescriban
+    const nombreArchivo = `${Date.now()}_${file.name}`;
+    
+    alert('Subiendo archivo a Supabase, por favor espera...');
+
+    // Subimos el archivo al bucket "archivos_observatorio"
+    const { data, error } = await supabase
+      .storage
+      .from('archivos_observatorio')
+      .upload(nombreArchivo, file);
+
+    if (error) {
+      alert('Hubo un error: ' + error.message);
+      console.error(error);
+    } else {
+      // Si sube bien, pedimos el link público de descarga
+      const { data: urlData } = supabase
+        .storage
+        .from('archivos_observatorio')
+        .getPublicUrl(nombreArchivo);
+        
+      alert('¡Éxito! Archivo subido. \n\nEnlace público: ' + urlData.publicUrl);
+      console.log('Enlace del archivo:', urlData.publicUrl);
+    }
+  });
+</script>
+<!-- FIN DE CONEXIÓN CON SUPABASE -->
+
+
+
 <body>
   <header>
     <div class="brand"><img
