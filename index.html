@@ -5403,65 +5403,44 @@
 </head>
 
 <!-- INICIO DE CONEXIÓN CON SUPABASE -->
-<!-- 1. Importamos la librería de Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-<!-- 2. Agregamos el selector y el BOTÓN de guardar -->
 <div style="position: fixed; bottom: 20px; right: 20px; background: white; padding: 15px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 9999; text-align: center;">
   <p style="margin: 0 0 10px; font-weight: bold; color: #343995; font-size: 14px;">☁️ Prueba de Nube</p>
-  
   <input type="file" id="archivoPrueba" style="font-size: 12px; margin-bottom: 10px; display: block; width: 100%;" />
-  
-  <!-- Aquí está tu botón de guardar -->
-  <button id="btnSubir" style="background: #00ff15; color: white; border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%;">
+  <button id="btnSubir" style="background: #7b7d08; color: white; border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%;">
     Guardar en la nube
   </button>
 </div>
 
-<!-- 3. Lógica de conexión y subida -->
 <script>
-// Inicializamos Supabase con tus llaves limpias
   const supabaseUrl = 'https://lpyzybtxlummlxvbyykn.supabase.co'; 
   const supabaseKey = 'sb_publishable_7bfsQurwYQL_tNcnyOx91w_rFkY7zfa'; 
-  const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+  // Usamos un nombre diferente para evitar el conflicto
+  const clienteSupabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-  // Le decimos al BOTÓN que escuche cuando le hagan clic
   document.getElementById('btnSubir').addEventListener('click', async () => {
-    
     const inputArchivo = document.getElementById('archivoPrueba');
     const file = inputArchivo.files[0];
     
-    // Si presionan el botón sin seleccionar archivo, les avisamos
     if (!file) {
       alert('⚠️ Por favor, selecciona un archivo primero.');
       return;
     }
 
-    // Le agregamos la fecha al nombre para que no se sobreescriban
     const nombreArchivo = `${Date.now()}_${file.name}`;
-    
     alert('⏳ Subiendo archivo a la nube, por favor espera...');
 
-    // Subimos el archivo al bucket "archivos_observatorio"
-    const { data, error } = await supabase
-      .storage
-      .from('archivos_observatorio')
-      .upload(nombreArchivo, file);
+    // Usamos clienteSupabase aquí
+    const { data, error } = await clienteSupabase.storage.from('archivos_observatorios').upload(nombreArchivo, file);
 
     if (error) {
       alert('❌ Hubo un error: ' + error.message);
       console.error(error);
     } else {
-      // Si sube bien, pedimos el link público de descarga
-      const { data: urlData } = supabase
-        .storage
-        .from('archivos_observatorio')
-        .getPublicUrl(nombreArchivo);
-        
+      // Y también aquí
+      const { data: urlData } = clienteSupabase.storage.from('archivos_observatorios').getPublicUrl(nombreArchivo);
       alert('✅ ¡Éxito! Archivo subido. \n\nEnlace público: ' + urlData.publicUrl);
-      console.log('Enlace del archivo:', urlData.publicUrl);
-      
-      // Limpiamos el input después de subir
       inputArchivo.value = '';
     }
   });
