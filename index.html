@@ -5449,6 +5449,7 @@
   const cuadroSubida = document.getElementById('cuadroSubida');
 
   // Consulta de rol y control de acceso
+  // Consulta de rol y control de acceso mejorada
   async function verificarSesion() {
     const { data: { session } } = await clienteSupabase.auth.getSession();
     
@@ -5457,16 +5458,22 @@
       btnLogout.style.display = 'block';
 
       const uid = session.user.id;
+      const email = session.user.email;
 
-      // Consultar el rol en la tabla 'perfiles' de Supabase
+      // Consultar el perfil buscando por ID o por Email
       const { data: perfil, error } = await clienteSupabase
         .from('perfiles')
         .select('rol')
-        .eq('id', uid)
+        .or(`id.eq.${uid},email.eq.${email}`)
         .maybeSingle();
 
-      const rol = perfil?.rol || 'usuario';
-      console.log(`[AUTH] Usuario: ${session.user.email} | Rol: ${rol}`);
+      if (error) {
+        console.error('Error al consultar tabla perfiles:', error);
+      }
+
+      // Limpiamos espacios y pasamos a minúsculas
+      const rol = perfil?.rol ? perfil.rol.trim().toLowerCase() : 'usuario';
+      console.log(`[AUTH] Usuario: ${email} | Rol detectado: ${rol}`);
 
       if (rol === 'admin') {
         cuadroSubida.style.display = 'block';
