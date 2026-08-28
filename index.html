@@ -5401,6 +5401,8 @@
     }
   </style>
 </head>
+
+
 <!-- MÓDULO DE AUTENTICACIÓN Y ALMACENAMIENTO DE SUPABASE -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -5427,16 +5429,16 @@
 
 <!-- 3. CUADRO DE PRUEBA DE SUBIDA (Flotante abajo a la derecha, oculto por defecto) -->
 <div id="cuadroSubida" style="display: none; position: fixed; bottom: 20px; right: 20px; background: white; padding: 15px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 9999; text-align: center;">
-  <p style="margin: 0 0 10px; font-weight: bold; color: #343995; font-size: 14px;">☁️ Prueba de Nube</p>
+  <p style="margin: 0 0 10px; font-weight: bold; color: #343995; font-size: 14px;">☁️ Cargar Archivos (Admin)</p>
   <input type="file" id="archivoPrueba" style="font-size: 12px; margin-bottom: 10px; display: block; width: 100%;" />
-  <button id="btnSubir" style="background: #ff0000; color: white; border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%;">
+  <button id="btnSubir" style="background: #343995; color: white; border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%;">
     Guardar en la nube
   </button>
 </div>
 
-<!-- 4. LÓGICA GENERAL -->
+<!-- 4. LÓGICA DE CONEXIÓN, ROLES Y EVENTOS -->
 <script>
-  // Inicialización de Supabase (una sola vez)
+  // Inicialización de Supabase
   const supabaseUrl = 'https://lpyzybtxlummlxvbyykn.supabase.co'; 
   const supabaseKey = 'sb_publishable_7bfsQurwYQL_tNcnyOx91w_rFkY7zfa'; 
   const clienteSupabase = window.supabase.createClient(supabaseUrl, supabaseKey);
@@ -5446,13 +5448,33 @@
   const btnLogout = document.getElementById('btnLogout');
   const cuadroSubida = document.getElementById('cuadroSubida');
 
-  // Control del estado de la sesión
+  // Consulta de rol y control de acceso
   async function verificarSesion() {
     const { data: { session } } = await clienteSupabase.auth.getSession();
+    
     if (session) {
       pantallaLogin.style.display = 'none';
       btnLogout.style.display = 'block';
-      cuadroSubida.style.display = 'block';
+
+      const uid = session.user.id;
+
+      // Consultar el rol en la tabla 'perfiles' de Supabase
+      const { data: perfil, error } = await clienteSupabase
+        .from('perfiles')
+        .select('rol')
+        .eq('id', uid)
+        .maybeSingle();
+
+      const rol = perfil?.rol || 'usuario';
+      console.log(`[AUTH] Usuario: ${session.user.email} | Rol: ${rol}`);
+
+      if (rol === 'admin') {
+        cuadroSubida.style.display = 'block';
+      } else {
+        cuadroSubida.style.display = 'none';
+        alert('ℹ️ Has ingresado con perfil de Lector (sin acceso a carga de archivos).');
+      }
+
     } else {
       pantallaLogin.style.display = 'flex';
       btnLogout.style.display = 'none';
@@ -5462,7 +5484,7 @@
 
   // Evento: Iniciar Sesión
   document.getElementById('btnLogin').addEventListener('click', async () => {
-    const email = document.getElementById('loginEmail').value;
+    const email = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPassword').value;
 
     if (!email || !password) {
@@ -5478,7 +5500,6 @@
     if (error) {
       alert('❌ Error al iniciar sesión: ' + error.message);
     } else {
-      alert('✅ ¡Bienvenido!');
       verificarSesion();
     }
   });
@@ -5490,7 +5511,7 @@
     verificarSesion();
   });
 
-  // Evento: Subir Archivo a Storage
+  // Evento: Subir Archivo
   document.getElementById('btnSubir').addEventListener('click', async () => {
     const inputArchivo = document.getElementById('archivoPrueba');
     const file = inputArchivo.files[0];
@@ -5503,21 +5524,29 @@
     const nombreArchivo = `${Date.now()}_${file.name}`;
     alert('⏳ Subiendo archivo a la nube, por favor espera...');
 
-    const { data, error } = await clienteSupabase.storage.from('archivos_observatorios').upload(nombreArchivo, file);
+    const { data, error } = await clienteSupabase
+      .storage
+      .from('archivos_observatorios')
+      .upload(nombreArchivo, file);
 
     if (error) {
       alert('❌ Hubo un error: ' + error.message);
       console.error(error);
     } else {
-      const { data: urlData } = clienteSupabase.storage.from('archivos_observatorios').getPublicUrl(nombreArchivo);
-      alert('✅ ¡Éxito! Archivo subido. \n\nEnlace público: ' + urlData.publicUrl);
+      const { data: urlData } = clienteSupabase
+        .storage
+        .from('archivos_observatorios')
+        .getPublicUrl(nombreArchivo);
+
+      alert('✅ ¡Éxito! Archivo subido.\n\nEnlace público: ' + urlData.publicUrl);
       inputArchivo.value = '';
     }
   });
 
-  // Ejecución inicial al cargar la página
+  // Ejecución inicial
   verificarSesion();
 </script>
+
 
 
 
