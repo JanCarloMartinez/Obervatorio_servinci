@@ -5401,24 +5401,96 @@
     }
   </style>
 </head>
-
-<!-- INICIO DE CONEXIÓN CON SUPABASE -->
+<!-- MÓDULO DE AUTENTICACIÓN Y ALMACENAMIENTO DE SUPABASE -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-<div style="position: fixed; bottom: 20px; right: 20px; background: white; padding: 15px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 9999; text-align: center;">
+<!-- 1. PANTALLA DE LOGIN (Pantalla completa por defecto) -->
+<div id="pantallaLogin" style="position: fixed; top: 0; left: 0; width: 100%; height: 100vh; background: #f4f6f9; z-index: 10000; display: flex; align-items: center; justify-content: center;">
+  <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); width: 100%; max-width: 380px; text-align: center;">
+    <h2 style="color: #343995; margin-bottom: 8px;">Observatorio Servinci</h2>
+    <p style="color: #666; font-size: 14px; margin-bottom: 24px;">Ingresa tus credenciales para acceder</p>
+    
+    <input type="email" id="loginEmail" placeholder="Correo electrónico" style="width: 100%; padding: 10px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box;" />
+    
+    <input type="password" id="loginPassword" placeholder="Contraseña" style="width: 100%; padding: 10px; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box;" />
+    
+    <button id="btnLogin" style="width: 100%; background: #343995; color: white; border: none; padding: 12px; border-radius: 6px; font-weight: bold; cursor: pointer;">
+      Iniciar Sesión
+    </button>
+  </div>
+</div>
+
+<!-- 2. BOTÓN DE CERRAR SESIÓN (Flotante arriba a la derecha) -->
+<button id="btnLogout" style="display: none; position: fixed; top: 15px; right: 15px; background: #d9534f; color: white; border: none; padding: 8px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; z-index: 9999;">
+  Cerrar Sesión 🚪
+</button>
+
+<!-- 3. CUADRO DE PRUEBA DE SUBIDA (Flotante abajo a la derecha, oculto por defecto) -->
+<div id="cuadroSubida" style="display: none; position: fixed; bottom: 20px; right: 20px; background: white; padding: 15px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 9999; text-align: center;">
   <p style="margin: 0 0 10px; font-weight: bold; color: #343995; font-size: 14px;">☁️ Prueba de Nube</p>
   <input type="file" id="archivoPrueba" style="font-size: 12px; margin-bottom: 10px; display: block; width: 100%;" />
-  <button id="btnSubir" style="background: #7b7d08; color: white; border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%;">
+  <button id="btnSubir" style="background: #ff0000; color: white; border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%;">
     Guardar en la nube
   </button>
 </div>
 
+<!-- 4. LÓGICA GENERAL -->
 <script>
+  // Inicialización de Supabase (una sola vez)
   const supabaseUrl = 'https://lpyzybtxlummlxvbyykn.supabase.co'; 
   const supabaseKey = 'sb_publishable_7bfsQurwYQL_tNcnyOx91w_rFkY7zfa'; 
-  // Usamos un nombre diferente para evitar el conflicto
   const clienteSupabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
+  // Elementos DOM
+  const pantallaLogin = document.getElementById('pantallaLogin');
+  const btnLogout = document.getElementById('btnLogout');
+  const cuadroSubida = document.getElementById('cuadroSubida');
+
+  // Control del estado de la sesión
+  async function verificarSesion() {
+    const { data: { session } } = await clienteSupabase.auth.getSession();
+    if (session) {
+      pantallaLogin.style.display = 'none';
+      btnLogout.style.display = 'block';
+      cuadroSubida.style.display = 'block';
+    } else {
+      pantallaLogin.style.display = 'flex';
+      btnLogout.style.display = 'none';
+      cuadroSubida.style.display = 'none';
+    }
+  }
+
+  // Evento: Iniciar Sesión
+  document.getElementById('btnLogin').addEventListener('click', async () => {
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+
+    if (!email || !password) {
+      alert('⚠️ Por favor ingresa tu correo y contraseña.');
+      return;
+    }
+
+    const { data, error } = await clienteSupabase.auth.signInWithPassword({
+      email: email,
+      password: password
+    });
+
+    if (error) {
+      alert('❌ Error al iniciar sesión: ' + error.message);
+    } else {
+      alert('✅ ¡Bienvenido!');
+      verificarSesion();
+    }
+  });
+
+  // Evento: Cerrar Sesión
+  btnLogout.addEventListener('click', async () => {
+    await clienteSupabase.auth.signOut();
+    alert('Has cerrado sesión.');
+    verificarSesion();
+  });
+
+  // Evento: Subir Archivo a Storage
   document.getElementById('btnSubir').addEventListener('click', async () => {
     const inputArchivo = document.getElementById('archivoPrueba');
     const file = inputArchivo.files[0];
@@ -5431,21 +5503,21 @@
     const nombreArchivo = `${Date.now()}_${file.name}`;
     alert('⏳ Subiendo archivo a la nube, por favor espera...');
 
-    // Usamos clienteSupabase aquí
     const { data, error } = await clienteSupabase.storage.from('archivos_observatorios').upload(nombreArchivo, file);
 
     if (error) {
       alert('❌ Hubo un error: ' + error.message);
       console.error(error);
     } else {
-      // Y también aquí
       const { data: urlData } = clienteSupabase.storage.from('archivos_observatorios').getPublicUrl(nombreArchivo);
       alert('✅ ¡Éxito! Archivo subido. \n\nEnlace público: ' + urlData.publicUrl);
       inputArchivo.value = '';
     }
   });
+
+  // Ejecución inicial al cargar la página
+  verificarSesion();
 </script>
-<!-- FIN DE CONEXIÓN CON SUPABASE -->
 
 
 
